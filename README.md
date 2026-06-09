@@ -2,7 +2,6 @@
 
 Autor: Mauricio Anguiano Juarez - A01703337
 Módulo: Módulo 2 Inteligencia Artificial — Tec de Monterrey
-Fecha: Mayo 2026
 Profesor: Benjamin Valdés Aguirre
 
 ---
@@ -20,7 +19,6 @@ modelo y guardado/carga del modelo en Keras.
 
 Nombre: pokemon-images-first-generation17000-files
 Fuente: Kaggle — autor mikoajkolman
-Descarga: kagglehub.dataset_download("mikoajkolman/pokemon-images-first-generation17000-files")
 Tamaño: ~17,000 imágenes organizadas en 151 carpetas (una por Pokémon).
 Nota: al descargar, el dataset expone 143 carpetas válidas con imágenes, por lo
 que NUM_CLASSES = 143 en la práctica.
@@ -50,23 +48,26 @@ que NUM_CLASSES = 143 en la práctica.
 | Archivo | Contenido |
 |---|---|
 | `README.md` | Documentación del proyecto (este archivo). |
-| `pokemon_cnn.ipynb` | Notebook principal: descarga y preprocesado del dataset, Modelo 1 (MobileNetV2) con entrenamiento, fine-tuning y evaluación, Modelo 2 (EfficientNetB0) y comparación final de los dos modelos. |
-| `pokemon_cnn_inferencia.ipynb` | Carga un modelo `.h5` ya entrenado y permite subir imágenes de Pokémon para clasificarlas (no entrena). |
-| `pokemon_cnn_best.h5`, `pokemon_effnet_best.h5`, `pokemon_effv2_best.h5` | Pesos de los modelos entrenados (MobileNetV2, EfficientNetB0, EfficientNetV2B0), recargables con `keras.models.load_model()`. |
+| `PokemonCNN.ipynb` | Notebook principal: descarga y preprocesado del dataset, Modelo 1 (MobileNetV2) con entrenamiento, fine-tuning y evaluación, Modelo 2 (EfficientNetB0) y comparación final de los dos modelos. |
+| `pokemon_cnn_pruebas.ipynb` | Demo de predicción: carga los modelos `.h5` ya entrenados y clasifica imágenes (no entrena); corre **los 2 modelos** lado a lado. |
+| `pokemon_cnn_best.h5` | Pesos del Modelo 1 (MobileNetV2, 128×128, val_acc 0.81). |
+| `pokemon_effnet_best.h5` | Pesos del Modelo 2 (EfficientNetB0, 224×224, mejor checkpoint 0.92). |
+| `matriz_confusion.png` | Matriz de confusión del Modelo 1 generada por el notebook. |
 
 ---
 
-## 6. Enlace al notebook
+
+## 5. Enlace al notebook
 
 Google Colab (con GPU):
 https://colab.research.google.com/drive/1zI1oSp4rAJreoIyJgig2vBqlGsieyJnF?usp=sharing
 
 ---
 
-## 7. Avance 2 — Modelo, evaluación inicial e interpretación
+## 6. Avance 2 — Modelo, evaluación inicial e interpretación
 
 
-### 7.1 Modelo implementado (baseline ejecutado)
+### 6.1 Modelo implementado (baseline ejecutado)
 
 El primer modelo usa **transfer learning** sobre **MobileNetV2** (Sandler et al., 2018)
 preentrenada en ImageNet, una arquitectura del estado del arte para clasificación de
@@ -77,83 +78,98 @@ ImageNet funcionan como un baseline sorprendentemente fuerte para tareas nuevas.
 
 Configuración:
 - Backbone MobileNetV2 con `include_top=False`, congelada en la fase 1.
-- Cabeza de clasificación: `GlobalAveragePooling2D → Dropout → Dense(softmax)` sobre las 143 clases efectivas.
+- Cabeza de clasificación: `GlobalAveragePooling2D → Dropout(0.3) → Dense(256, ReLU) → Dropout(0.3) → Dense(143, softmax)` sobre las 143 clases efectivas.
 - Entrada 128×128, rescalado `1./255`, data augmentation solo en entrenamiento (rotación, shift, zoom, flip).
 - Optimizador Adam; callbacks `ModelCheckpoint`, `EarlyStopping`, `ReduceLROnPlateau`.
 - Fase 2 (fine-tuning): se descongelan las últimas 30 capas de la base y se reentrena con learning rate menor.
 
-### 7.2 Métricas y resultados
+### 6.2 Métricas y resultados
 
 La evaluación usa la accuracy global, además de precision, recall y F1 por clase
 (`classification_report`) y la matriz de confusión, que es la metodología estándar para
-clasificación multi-clase en la literatura citada.
+clasificación multi-clase.
 
 | Métrica | Valor (baseline / Modelo 1) |
 |---|---|
 | Muestras de entrenamiento | 13,246 |
 | Muestras de validación | 3,239 |
 | Clases efectivas | 143 (el dataset expone 143 carpetas con imágenes, no 151) |
-| **val_accuracy** | **0.80** (medido: 0.8015) |
+| **val_accuracy** | **0.81** (medido: 0.8114) |
+| macro-F1 / weighted-F1 | 0.80 / 0.81 (precision macro 0.82) |
 
-### 7.3 Interpretación
+### 6.3 Interpretación
 
-- Una accuracy de ~80% sobre 143 clases es un resultado sólido para un baseline: el azar
-  daría ~0.7% (1/143), por lo que el modelo aprende características discriminativas reales.
+- Un accuracy de ~81% sobre 143 clases es un resultado sólido para un baseline: el azar
+  daría ~0.007% (1/143), por lo que el modelo aprende características discriminativas reales.
 - En el `classification_report` por clase, muchos Pokémon alcanzan F1 altos (0.80–0.95),
   mientras que las clases con pocas imágenes o muy parecidas a otras (problema de tipo
-  *fine-grained*, ver Wang et al., 2014) son las que bajan el desempeño.
+  *fine-grained*) son las que bajan el desempeño.
 - Las confusiones esperables ocurren entre Pokémon visualmente similares y entre etiquetas
   casi duplicadas del dataset (p. ej. "Mr. Mime" vs "MrMime"), lo cual es una limitación
-  del dataset más que del modelo. Limpiar esas etiquetas duplicadas es una mejora pendiente.
+  del dataset más que del modelo.
+
+### 6.4 Matriz de confusión (Modelo 1)
+
+La celda 13 del notebook calcula la matriz de confusión completa de 143×143, la guarda como
+imagen (`matriz_confusion.png`, normalizada por fila) y lista las confusiones concretas. Como
+una matriz de 143 columnas no es legible con números, lo más informativo es el listado de
+**clases con más errores** y de **pares (real → predicho)** que más se confunden.
+
+**Top de Pokémon con más errores (de la corrida real, Modelo 1):**
+
+| Pokémon (real) | Errores / muestras |
+|---|---|
+| Pinsir | 13 / 26 |
+| Electabuzz | 13 / 24 |
+| Farfetch'd | 12 / 25 |
+| Starmie | 12 / 28 |
+| Rapidash | 12 / 25 |
+| Pidgey | 12 / 38 |
+| Pidgeotto | 12 / 24 |
+| Marowak | 11 / 18 |
+| Primeape | 11 / 27 |
+| Kadabra | 11 / 17 |
+
+**Confusiones concretas más frecuentes (real → predicho):** 
+- Starmie → Staryu (9 veces)
+- Rapidash → Ponyta (9)
+- Pidgeotto → Pidgeot (7)
+- Wartortle → Squirtle (5)
+- Electrode → Voltorb (5)
+- Poliwhirl → Poliwrath (5)
+- Jolteon → Zapdos (4).
+
+Casi todas las confusiones caen entre **el mismo Pokémon en distinta etapa
+evolutiva** o **Pokémon del mismo tipo y silueta** . Es el problema clásico de clasificación *fine-grained*: distinguir clases visualmente casi idénticas. 
+
+![Matriz de confusión del Modelo 1](matriz_confusion.png)
 
 ---
 
-## 8. Comparación de modelos
-
-El requisito del módulo pide implementar al menos 2 versiones del modelo basadas en
+## 7. Comparación de modelos
+Se nos pide implementar al menos 2 versiones del modelo basadas en
 artículos de investigación, compararlas y que la segunda supere a la primera. En este
 avance se implementaron y compararon dos versiones:
 
 | # | Modelo | Idea / artículo que lo respalda | Cambios clave respecto al anterior | val_accuracy |
 |---|---|---|---|---|
-| 1 | MobileNetV2 (baseline) | Sandler et al. (2018); transfer learning, Sharif Razavian et al. (2014) | Transfer learning con base congelada + fine-tuning de 30 capas, entrada 128×128 | **0.80** |
+| 1 | MobileNetV2 (baseline) | Sandler et al. (2018) | Transfer learning con base congelada + fine-tuning de 30 capas, entrada 128×128 | **0.81** |
 | 2 | EfficientNetB0 | Tan & Le (2019) — escalado compuesto | Backbone más eficiente, entrada 224×224, preprocesado propio de EfficientNet | **0.89** |
 
 ### Resultados obtenidos (Colab con GPU)
 
-- La val_accuracy sube de **0.80 (MobileNetV2) a 0.89 (EfficientNetB0)**, una mejora de ~9
-  puntos. El escalado compuesto de EfficientNet y la mayor resolución de entrada (224×224)
-  superan con claridad al baseline, tal como predice Tan & Le (2019). ✓ Se cumple **M2 > M1**.
-- Ambos valores son la evaluación del modelo final de cada versión sobre el mismo set de
-  validación, por lo que la comparación es directa.
-- Se exploró además una tercera versión (EfficientNetV2B0 con label smoothing y cosine
-  decay), pero no se alcanzó a completar su entrenamiento; el avance cumple el requisito
-  con las dos versiones anteriores.
-
+- El accuracy sube de **0.81 (MobileNetV2) a 0.89 (EfficientNetB0)**, una mejora de ~8 puntos. El escalado compuesto de EfficientNet y la mayor resolución de entrada (224×224) superan con claridad al baseline.
+- Ambos valores son la evaluación del **modelo final** de cada versión sobre el mismo set de validación, por lo que la comparación es directa. (El **mejor checkpoint** de EfficientNetB0 el que guarda `pokemon_effnet_best.h5` alcanzó 0.92; se reporta el 0.89 del modelo final para comparar de forma equivalente con MobileNetV2, que también se reporta con su modelo final.) 
 
 ---
 
-## 9. Referencias del estado del arte
+## 9. Referencias
 
-Las siguientes referencias fueron verificadas en **Scopus**.
+> Solo se listan referencias que corresponden a algo **realmente implementado y usado** . Las arquitecturas se instancian directamente en el código (`tf.keras.applications.MobileNetV2` y `EfficientNetB0`), por lo que sus artículos originales (referencias *canónicas*) son los que se citan.
 
-**Clasificación / reconocimiento de imágenes con CNN**
-- Chollet, F. (2017). *Xception: Deep learning with depthwise separable convolutions.* IEEE CVPR. (~14,820 citas)
-- He, K., Zhang, X., Ren, S., & Sun, J. (2015). *Spatial Pyramid Pooling in Deep Convolutional Networks for Visual Recognition.* IEEE TPAMI, 37(9). (~11,402 citas)
-- Wang, X., Girshick, R., Gupta, A., & He, K. (2018). *Non-local Neural Networks.* IEEE CVPR. (~11,092 citas)
-
-**Clasificación fine-grained / discriminativa e interpretabilidad**
-- Selvaraju, R. R., Cogswell, M., Das, A., Vedantam, R., Parikh, D., & Batra, D. (2017). *Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization.* IEEE ICCV. (~22,239 citas)
-- Sharif Razavian, A., Azizpour, H., Sullivan, J., & Carlsson, S. (2014). *CNN Features off-the-shelf: An astounding baseline for recognition.* IEEE CVPR Workshops. (~3,619 citas)
-- Wang, J., Song, Y., Leung, T., Rosenberg, C., Wang, J., Philbin, J., Chen, B., & Wu, Y. (2014). *Learning fine-grained image similarity with deep ranking.* IEEE CVPR. (~1,176 citas)
-
-**Arquitecturas y técnicas implementadas en el notebook**
-*(referencias canónicas de las arquitecturas usadas; aún no verificadas individualmente en Scopus en esta sesión)*
-- Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., & Chen, L.-C. (2018). *MobileNetV2: Inverted Residuals and Linear Bottlenecks.* IEEE CVPR.
-- Tan, M., & Le, Q. (2019). *EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks.* ICML.
-- Tan, M., & Le, Q. (2021). *EfficientNetV2: Smaller Models and Faster Training.* ICML.
-- Szegedy, C., Vanhoucke, V., Ioffe, S., Shlens, J., & Wojna, Z. (2016). *Rethinking the Inception Architecture for Computer Vision* (label smoothing). IEEE CVPR.
-- Loshchilov, I., & Hutter, F. (2017). *SGDR: Stochastic Gradient Descent with Warm Restarts* (cosine decay). ICLR.
-
-Estas referencias están indexadas en Scopus y publicadas en venues top del área (CVPR, ICCV,
-TPAMI, ICML) con altos conteos de citas, lo que respalda que pertenecen al estado del arte.
+**Arquitecturas implementadas en el código:**
+- Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., & Chen, L.-C. (2018). *MobileNetV2:
+  Inverted Residuals and Linear Bottlenecks.* IEEE/CVF CVPR. — backbone del **Modelo 1**
+  (`tf.keras.applications.MobileNetV2`).
+- Tan, M., & Le, Q. (2019). *EfficientNet: Rethinking Model Scaling for Convolutional Neural
+  Networks.* ICML. — backbone del **Modelo 2** (`tf.keras.applications.EfficientNetB0`).
