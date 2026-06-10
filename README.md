@@ -8,10 +8,7 @@ Profesor: Benjamin Valdés Aguirre
 
 ## 1. Objetivo
 
-Construir y evaluar una CNN que clasifique correctamente imágenes de 151 clases
-(los Pokémon de la primera generación), haciendo preparación del dataset,
-train/validation split, data augmentation, transfer learning, evaluación de
-modelo y guardado/carga del modelo en Keras.
+Construir y evaluar una CNN que clasifique correctamente imágenes de 151 clases (los Pokémon de la primera generación), haciendo preparación del dataset, train/validation split, data augmentation, transfer learning, evaluación de modelo y guardado/carga del modelo en Keras.
 
 ---
 
@@ -19,9 +16,7 @@ modelo y guardado/carga del modelo en Keras.
 
 Nombre: pokemon-images-first-generation17000-files
 Fuente: Kaggle — autor mikoajkolman
-Tamaño: ~17,000 imágenes organizadas en 151 carpetas (una por Pokémon).
-Nota: al descargar, el dataset expone 143 carpetas válidas con imágenes, por lo
-que NUM_CLASSES = 143 en la práctica.
+Tamaño: ~17,000 imágenes organizadas en 151 carpetas (una por Pokémon). Al descargar, el dataset expone 143 carpetas válidas con imágenes, por lo que NUM_CLASSES = 143 en la práctica.
 
 ### ¿Por qué este dataset y no otro?
 
@@ -48,19 +43,19 @@ que NUM_CLASSES = 143 en la práctica.
 | Archivo | Contenido |
 |---|---|
 | `README.md` | Documentación del proyecto (este archivo). |
-| `PokemonCNN.ipynb` | Notebook principal: descarga y preprocesado del dataset, Modelo 1 (MobileNetV2) con entrenamiento, fine-tuning y evaluación, Modelo 2 (EfficientNetB0) y comparación final de los dos modelos. |
-| `pokemon_cnn_pruebas.ipynb` | Demo de predicción: carga los modelos `.h5` ya entrenados y clasifica imágenes (no entrena); corre **los 2 modelos** lado a lado. |
-| `pokemon_cnn_best.h5` | Pesos del Modelo 1 (MobileNetV2, 128×128, val_acc 0.81). |
-| `pokemon_effnet_best.h5` | Pesos del Modelo 2 (EfficientNetB0, 224×224, mejor checkpoint 0.92). |
-| `matriz_confusion.png` | Matriz de confusión del Modelo 1 generada por el notebook. |
+| `PokemonCNN.ipynb` | Notebook principal: descarga y preprocesado del dataset, Modelo 1 (MobileNetV2), Modelo 2.0 (EfficientNetV2-S con mejoras, ver sección 8) y comparación de modelos. |
+| `pokemon_cnn_pruebas.ipynb` | Demo de predicción: carga los modelos `.h5` ya entrenados y clasifica imágenes (no entrena). |
+| `pokemon_cnn_best.h5` | Pesos del **Modelo 1** (MobileNetV2, 128×128, val_acc 0.81). |
+| `pokemon_effnet_best.h5` | Pesos del **Modelo 2** (EfficientNetB0, 224×224, mejor checkpoint 0.92). |
+| `pokemon_effv2s_best.h5` | Pesos del **Modelo 2.0** (EfficientNetV2-S, 224×224, **val_accuracy 0.96**), la versión más fuerte. |
 
 ---
 
 
 ## 5. Enlace al notebook
 
-Google Colab (con GPU):
-https://colab.research.google.com/drive/1zI1oSp4rAJreoIyJgig2vBqlGsieyJnF?usp=sharing
+Google Colab:
+https://drive.google.com/file/d/1AcBZhYBGJDCSg_eWWzxFB2ccEsTyt9YU/view?usp=sharing
 
 ---
 
@@ -108,14 +103,11 @@ clasificación multi-clase.
   casi duplicadas del dataset (p. ej. "Mr. Mime" vs "MrMime"), lo cual es una limitación
   del dataset más que del modelo.
 
-### 6.4 Matriz de confusión (Modelo 1)
+### 6.4 Matriz de confusión 
 
-La celda 13 del notebook calcula la matriz de confusión completa de 143×143, la guarda como
-imagen (`matriz_confusion.png`, normalizada por fila) y lista las confusiones concretas. Como
-una matriz de 143 columnas no es legible con números, lo más informativo es el listado de
-**clases con más errores** y de **pares (real → predicho)** que más se confunden.
+Como una matriz de 143 columnas no es legible con números, lo más informativo es el listado de **clases con más errores** y de **pares (real → predicho)** que más se confunden.
 
-**Top de Pokémon con más errores (de la corrida real, Modelo 1):**
+**Top de Pokémon con más errores:**
 
 | Pokémon (real) | Errores / muestras |
 |---|---|
@@ -147,29 +139,70 @@ evolutiva** o **Pokémon del mismo tipo y silueta** . Es el problema clásico de
 ---
 
 ## 7. Comparación de modelos
-Se nos pide implementar al menos 2 versiones del modelo basadas en
-artículos de investigación, compararlas y que la segunda supere a la primera. En este
-avance se implementaron y compararon dos versiones:
+Se nos pidió realizar mejoras al mejor modelo que teníamos previamente para despues compararlas y que la segunda supere a la primera. La progresión fue de **tres modelos** (todos
+evaluados sobre el mismo set de validación: 3,239 imágenes, 143 clases):
 
-| # | Modelo | Idea / artículo que lo respalda | Cambios clave respecto al anterior | val_accuracy |
-|---|---|---|---|---|
-| 1 | MobileNetV2 (baseline) | Sandler et al. (2018) | Transfer learning con base congelada + fine-tuning de 30 capas, entrada 128×128 | **0.81** |
-| 2 | EfficientNetB0 | Tan & Le (2019) — escalado compuesto | Backbone más eficiente, entrada 224×224, preprocesado propio de EfficientNet | **0.89** |
+| Modelo | Backbone | Artículo | val_accuracy |
+|---|---|---|---|
+| **Modelo 1** | MobileNetV2 | Sandler et al. (2018) | **0.81** |
+| **Modelo 2** | EfficientNetB0 | Tan & Le (2019) | **0.92** |
+| **Modelo 2.0** | EfficientNetV2-S | Tan & Le (2021) | **0.96** (0.9583) |
 
-### Resultados obtenidos (Colab con GPU)
 
-- El accuracy sube de **0.81 (MobileNetV2) a 0.89 (EfficientNetB0)**, una mejora de ~8 puntos. El escalado compuesto de EfficientNet y la mayor resolución de entrada (224×224) superan con claridad al baseline.
-- Ambos valores son la evaluación del **modelo final** de cada versión sobre el mismo set de validación, por lo que la comparación es directa. (El **mejor checkpoint** de EfficientNetB0 el que guarda `pokemon_effnet_best.h5` alcanzó 0.92; se reporta el 0.89 del modelo final para comparar de forma equivalente con MobileNetV2, que también se reporta con su modelo final.) 
+#### Comparación 1 — Modelo 1 vs Modelo 2 (MobileNetV2 → EfficientNetB0): 0.81 → 0.92
+
+Cambiar el backbone de MobileNetV2 a **EfficientNetB0** y subir la resolución de entrada de 128×128 a
+224×224 mejoró el accuracy de **0.81 a 0.92 (+11 puntos)**. El *escalado compuesto* de EfficientNet
+(equilibra profundidad, anchura y resolución) extrae características más discriminativas, clave en un problema *fine-grained* de 143 clases con Pokémon visualmente parecidos.
+
+#### Comparación 2 — Modelo 2 vs Modelo 2.0 (EfficientNetB0 → EfficientNetV2-S): 0.92 → 0.96
+
+Aquí entran las **3 mejoras** backbone **EfficientNetV2-S** (bloques *Fused-MBConv*), **augmentation más fuerte + label smoothing**, y una **receta de entrenamiento corregida** (fine-tuning profundo de 60 capas y evaluación del mejor checkpoint). El accuracy sube de **0.92 a 0.9583 (+3.8 puntos)**. El **fine-tuning fue decisivo**: con la base congelada (solo la cabeza) el Modelo 2.0 se estancó en ~0.887, y al descongelar las últimas 60 capas con learning rate bajo (1e-4) subió de forma sostenida hasta 0.9583.
+
+### Ejemplos visuales — imágenes de prueba (antes vs después)
+
+Estas son las imágenes que se probaron con el profesor (`test_images/pruebaBenji*`), clasificadas con los modelos **antes** de las mejoras (MobileNetV2, EfficientNetB0) y **después** (EfficientNetV2-S, Modelo 2.0).
+
+
+
+| Imagen | Antes · MobileNetV2 | Antes · EfficientNetB0 | Después · EfficientNetV2-S (2.0) |
+|:---:|:---:|:---:|:---:|
+| <img src="test_images/pruebaBenji.webp" width="130"> | Mewtwo 32.5% | Machop 55.9% | Dewgong 8.7% |
+| <img src="test_images/pruebaBenji2.jpg" width="130"> | Hypno 53.6% | Kangaskhan 59.0% | Kangaskhan 13.6% |
+| <img src="test_images/pruebaBenji3.webp" width="130"> | Scyther 19.7% | Mewtwo 49.8% | **Mewtwo 97.3%** |
+
+---
+
+## 8. Mejoras (Modelo 2.0 — EfficientNetV2-S)
+
+**Mejora 1 — Backbone más potente y moderno: EfficientNetV2-S.**
+EfficientNetV2 (Tan & Le, 2021) introduce bloques *Fused-MBConv* y un esquema de entrenamiento más eficiente; su variante *S* tiene más capacidad y mejor preentrenamiento en ImageNet que EfficientNetB0, por lo que se espera mayor accuracy en un problema *fine-grained* de 143 clases. Se instancia con `tf.keras.applications.EfficientNetV2S`. La normalización de píxeles va dentro del modelo, así que las imágenes se alimentan en el rango [0,255].
+
+**Mejora 2 — Regularización más fuerte: data augmentation enriquecido + label smoothing.**
+El aumento de datos del Modelo 2.0 es más agresivo que el del baseline: además de rotación,
+desplazamientos, zoom y flip horizontal, añade *shear* (cizalla) y variación de brillo
+(`brightness_range=[0.8, 1.2]`). Además se entrena con `label_smoothing=0.1` en la pérdida
+`CategoricalCrossentropy`. Ambas técnicas reducen el sobreajuste y mejoran la generalización cuando hay
+muchas clases con pocas imágenes cada una.
+
+**Mejora 3 — Receta de entrenamiento corregida y más profunda.**
+1. *Callbacks independientes por fase.* En el Avance 2, reutilizar la misma instancia de callbacks entre la fase de cabeza y la de fine-tuning hacía que `EarlyStopping` arrastrara su mejor valor previo y el modelo final terminara por debajo del mejor checkpoint. Aquí cada fase usa callbacks nuevos y, con `ModelCheckpoint(initial_value_threshold=best_fase1)`, el archivo `pokemon_effv2s_best.h5` siempre conserva el **mejor modelo global**.
+2. *Fine-tuning más profundo.* Se descongelan las **últimas 60 capas** del backbone (vs 30 en los modelos previos), con un learning rate bajo (1e-4) para ajustar más representaciones sin destruir los pesos preentrenados.
+3. *Se evalúa el mejor checkpoint.* Al final se recarga `pokemon_effv2s_best.h5` y se mide sobre el set de validación, de modo que la accuracy reportada del Modelo 2.0 corresponde a su mejor modelo real (no al modelo posterior al fine-tuning).
 
 ---
 
 ## 9. Referencias
 
-> Solo se listan referencias que corresponden a algo **realmente implementado y usado** . Las arquitecturas se instancian directamente en el código (`tf.keras.applications.MobileNetV2` y `EfficientNetB0`), por lo que sus artículos originales (referencias *canónicas*) son los que se citan.
-
-**Arquitecturas implementadas en el código:**
+**Arquitecturas y técnicas:**
 - Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., & Chen, L.-C. (2018). *MobileNetV2:
-  Inverted Residuals and Linear Bottlenecks.* IEEE/CVF CVPR. — backbone del **Modelo 1**
+  Inverted Residuals and Linear Bottlenecks.* IEEE/CVF CVPR. arXiv:1801.04381 — backbone del **Modelo 1**
   (`tf.keras.applications.MobileNetV2`).
 - Tan, M., & Le, Q. (2019). *EfficientNet: Rethinking Model Scaling for Convolutional Neural
-  Networks.* ICML. — backbone del **Modelo 2** (`tf.keras.applications.EfficientNetB0`).
+  Networks.* ICML. arXiv:1905.11946 — escalado compuesto; backbone del **Modelo 2**
+  (`tf.keras.applications.EfficientNetB0`, mejor checkpoint 0.92).
+- Tan, M., & Le, Q. (2021). *EfficientNetV2: Smaller Models and Faster Training.* ICML.
+  arXiv:2104.00298 — backbone del **Modelo 2.0** (`tf.keras.applications.EfficientNetV2S`).
+- Szegedy, C., Vanhoucke, V., Ioffe, S., Shlens, J., & Wojna, Z. (2016). *Rethinking the Inception
+  Architecture for Computer Vision.* CVPR. arXiv:1512.00567 — origen del **label smoothing**
+  (`label_smoothing=0.1`) usado en la pérdida del Modelo 2.0.
